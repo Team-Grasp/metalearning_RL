@@ -18,12 +18,12 @@ parser.add_argument('--num_workers', type=int, default=1, help='number of worker
 
 parser.add_argument('--model_type', type=str, default='gru', help='the model to use (gru or snail) (default: gru)')
 parser.add_argument('--metalearn_epochs', type=int, default=300, help='number of epochs for meta learning (default: 300)')
-parser.add_argument('--task', type=str, default='bandit', help='the task to learn [bandit, mdp] (default: bandit)')
+parser.add_argument('--task', type=str, default='grasp', help='the task to learn [bandit, mdp] (default: bandit)')
 parser.add_argument('--learning_rate', type=float, default=3e-4, help='learning rate for optimizer (default: 3e-4)')
 parser.add_argument('--gamma', type=float, default=0.99, help='discount factor (default: 0.99)')
 
 parser.add_argument('--num_actions', type=int, default=5, help='number of arms for MAB or number of actions for MDP (default: 5)')
-parser.add_argument('--num_tasks', type=int, default=1000, help='number of similar tasks to run (default: 100)')
+parser.add_argument('--num_tasks', type=int, default=5, help='number of similar tasks to run (default: 100)')
 parser.add_argument('--num_traj', type=int, default=10, help='number of trajectories to interact with (default: 10)')
 parser.add_argument('--traj_len', type=int, default=1, help='fixed trajectory length (default: 1)')
 
@@ -97,7 +97,7 @@ def meta_train(device, num_workers, model_type, metalearn_epochs, task, num_acti
 def main():
   assert args.num_workers > 0, 'Need to have at least one worker'
   assert (args.model_type == 'gru' or args.model_type == 'snail'), 'Invalid model'
-  assert (args.task == 'bandit' or args.task == 'mdp'), 'Invalid Task'
+  # assert (args.task == 'bandit' or args.task == 'mdp'), 'Invalid Task'
   assert (args.mini_batch_size <= args.batch_size), 'Mini-batch size needs to be <= batch size'
   task = ''
   if args.task == 'bandit':
@@ -108,6 +108,10 @@ def main():
     task = "TabularMDP-v0"
     num_actions = 5
     num_states = 10
+  elif args.task == "grasp":
+        task = "MultiTaskEnv"
+        num_actions = 8
+        num_states = 6
 
   if (not os.path.exists(tmp_folder)):
     os.mkdir(tmp_folder)

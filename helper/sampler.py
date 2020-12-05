@@ -1,9 +1,8 @@
 import torch
 import numpy as np
 import gym
-import multiprocessing as mp
-from helper.envs.multiprocessing_env import SubprocVecEnv
-
+from .multitask_env import MultiTaskEnv
+from .reach_task import ReachTargetCustom
 EPS = 1e-8
 
 
@@ -16,7 +15,7 @@ def make_env(env_name):
 
 # This samples from the current environment using the provided model
 class Sampler():
-  def __init__(self, device, model, env_name, num_actions, deterministic=False, gamma=0.99, tau=0.3, num_workers=mp.cpu_count() - 1, evaluate=False):
+  def __init__(self, device, model, env_name, num_actions, deterministic=False, gamma=0.99, tau=0.3, num_workers=1, evaluate=False):
     self.device = device
     self.model = model
     self.env_name = env_name
@@ -32,7 +31,13 @@ class Sampler():
 
     # This is for multi-processing
     self.num_workers = num_workers
-    self.envs = SubprocVecEnv([make_env(env_name) for _ in range(num_workers)])
+    env_kwargs = {
+      "task_class": ReachTargetCustom, 
+      "render_mode": "human",
+      'num_tasks': 5,
+      }
+    
+    self.env = MultiTaskEnv(**env_kwargs)
 
   # Computes the advantage where lambda = tau
   def compute_gae(self, next_value, rewards, masks, values, gamma=0.99, tau=0.95):
@@ -50,10 +55,8 @@ class Sampler():
 
   # Set the current task
   def set_task(self, task):
-    tasks = [task for _ in range(self.num_workers)]
-    reset = self.envs.reset_task(tasks)
-
-
+    self.env.set_task(task)
+  
   # Reset the storage
   def reset_storage(self):
     self.actions = []
@@ -98,7 +101,7 @@ class Sampler():
 
   # Resets the trajectory to the beginning
   def reset_traj(self):
-    states = self.envs.reset()
+    states = self.env.reset()
     return torch.from_numpy(states), torch.zeros([self.num_workers, ]), torch.from_numpy(np.full((self.num_workers, ), -1)), torch.zeros([self.num_workers, ])
 
 
@@ -106,6 +109,7 @@ class Sampler():
   def generate_state_vector(self, done, reward, num_actions, action, state):
     done_entry = done.float().unsqueeze(1)
     reward_entry = reward.float().unsqueeze(1)
+    state = state.float().unsqueeze(1)
     action_vector = torch.zeros([self.num_workers, num_actions])
 
     # Try to speed up while having some check
@@ -114,6 +118,8 @@ class Sampler():
     elif any(action > -1):
       assert False, 'All processes should be at the same step'
     
+    from IPython import embed; embed()
+
     state = torch.cat((state, action_vector, reward_entry, done_entry), 1)
     state = state.unsqueeze(0)
     return state.to(self.device)
@@ -154,7 +160,7 @@ class Sampler():
       action = self.get_next_action(dist)
 
       log_prob = dist.log_prob(action)
-      next_state, reward, done, _ = self.envs.step(action.cpu().numpy())
+      next_state, reward, done, _ = self.env.step(action.cpu().numpy())
       done = done.astype(int)
 
       reward = torch.from_numpy(reward).float()
