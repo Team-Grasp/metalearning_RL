@@ -122,6 +122,7 @@ class Sampler():
     # elif any(action > -1):
     #   assert False, 'All processes should be at the same step'
     
+
     state = torch.cat((state, action_vector.T, reward_entry, done_entry), 0)
     state = state.T.unsqueeze(0)
     return state.to(self.device)
@@ -162,6 +163,7 @@ class Sampler():
       action = self.get_next_action(dist)
 
       log_prob = dist.log_prob(action)
+
       next_state, reward, done, _ = self.env.step(action.squeeze(0).cpu().numpy())
       
       reward = np.array(reward)
