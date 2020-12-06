@@ -3,6 +3,8 @@ import numpy as np
 import gym
 from .multitask_env import MultiTaskEnv
 from .reach_task import ReachTargetCustom
+from rlbench.action_modes import ArmActionMode
+
 EPS = 1e-8
 
 
@@ -35,6 +37,8 @@ class Sampler():
       "task_class": ReachTargetCustom, 
       "render_mode": None, # "human",
       'num_tasks': 5,
+      "act_mode": ArmActionMode.DELTA_EE_POSE_PLAN_WORLD_FRAME,
+      'action_size' : 7,
       }
     
     self.env = MultiTaskEnv(**env_kwargs)
@@ -152,12 +156,12 @@ class Sampler():
 
       # Get information from model and take action
       with torch.no_grad():
-        action, value, next_hidden_state = self.model(state, hidden_state)
+        dist, value, next_hidden_state = self.model(state, hidden_state)
       
       # Decide if we should exploit all the time
-      # action = self.get_next_action(dist)
+      action = self.get_next_action(dist)
 
-      # log_prob = dist.log_prob(action)
+      log_prob = dist.log_prob(action)
       next_state, reward, done, _ = self.env.step(action.squeeze(0).cpu().numpy())
       
       reward = np.array(reward)
@@ -167,7 +171,7 @@ class Sampler():
       done = torch.from_numpy(done).float()
         
       # Store the information
-      self.insert_storage(action, state, action, reward.unsqueeze(0), done.unsqueeze(0), value, hidden_state)
+      self.insert_storage(log_prob.unsqueeze(0), state, action, reward.unsqueeze(0), done.unsqueeze(0), value, hidden_state)
       self.save_evaluate(action, state, reward)
 
       # Update to the next value

@@ -109,9 +109,9 @@ def main():
     num_actions = 5
     num_states = 10
   elif args.task == "grasp":
-        task = "MultiTaskEnv"
-        num_actions = 8
-        num_states = 6
+    task = "MultiTaskEnv"
+    num_actions = 7
+    num_states = 6
 
   if (not os.path.exists(tmp_folder)):
     os.mkdir(tmp_folder)
