@@ -120,6 +120,11 @@ class SubprocVecEnv(VecEnv):
         for remote, action in zip(self.remotes, actions):
             remote.send(('step', action))
         self.waiting = True
+    
+    def set_task(self, task):
+        for remote, task in zip(self.remotes, task):
+            remote.send(('set_task', task))
+        self.waiting = False
 
     def step_wait(self):
         results = [remote.recv() for remote in self.remotes]

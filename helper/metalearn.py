@@ -12,8 +12,8 @@ class MetaLearner():
     self.traj_len = traj_len
     self.task_name = task
 
-    self.env = gym.make(task)
-    self.sample_tasks()
+    # self.env =  MultiTaskEnv(num_tasks=5, task_class=ReachTargetCustom, render_mode="human")
+    # self.sample_tasks()
     self.sampler = Sampler(device, model, self.task_name, self.num_actions, deterministic=False, gamma=gamma, tau=tau, num_workers=self.num_workers)
 
   # Clean sampler
@@ -23,13 +23,13 @@ class MetaLearner():
 
   # Resample the tasks
   def sample_tasks(self):
-    self.tasks = self.env.unwrapped.sample_tasks(self.num_tasks)
+    self.tasks = self.num_tasks
 
   # Set the environment using the i'th task
   def set_env(self, i):
     assert isinstance(self.sampler, Sampler), 'sampler is not type of Sampler'
     assert (i < self.num_tasks and i >= 0), 'i = {} is out of range. There is only {} tasks'.format(i, self.num_tasks)
-    self.sampler.set_task(self.tasks[i])
+    self.sampler.set_task(i)
 
   # Meta train model
   def train(self, agent):

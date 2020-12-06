@@ -12,7 +12,7 @@ class GRUActorCritic(nn.Module):
 
     self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size)
     self.relu1 = nn.ReLU()
-    self.policy = nn.Linear(hidden_size, output_size)
+    self.policy = nn.Linear(hidden_size, output_size)  # ?? 
     self.value = nn.Linear(hidden_size, 1)
     self.apply(weight_init)
 
@@ -21,7 +21,8 @@ class GRUActorCritic(nn.Module):
     x = self.relu1(x)
     val = self.value(x)
     dist = self.policy(x).squeeze(0)
-    return Categorical(logits=dist), val, h
+    dist[-1] = 1
+    return dist, val, h
 
   def init_hidden_state(self, batchsize=1):
     return torch.zeros([1, batchsize, self.hidden_size])
