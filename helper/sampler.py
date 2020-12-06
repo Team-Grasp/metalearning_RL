@@ -113,7 +113,7 @@ class Sampler():
   def generate_state_vector(self, done, reward, num_actions, action, state):
     done_entry = done.float().unsqueeze(1)
     reward_entry = reward.float().unsqueeze(1)
-    state = state.float().unsqueeze(1)
+    state = state.float().unsqueeze(0)
     action_vector = torch.zeros([self.num_workers, num_actions])
 
     # # Try to speed up while having some check
@@ -123,8 +123,8 @@ class Sampler():
     #   assert False, 'All processes should be at the same step'
     
 
-    state = torch.cat((state, action_vector.T, reward_entry, done_entry), 0)
-    state = state.T.unsqueeze(0)
+    state = torch.cat((state, action_vector, reward_entry, done_entry), 1)
+    state = state.unsqueeze(0)
     return state.to(self.device)
 
 
