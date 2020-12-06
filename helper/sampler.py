@@ -3,6 +3,8 @@ import numpy as np
 import gym
 from .multitask_env import MultiTaskEnv
 from .reach_task import ReachTargetCustom
+from rlbench.action_modes import ArmActionMode
+
 EPS = 1e-8
 
 
@@ -33,8 +35,10 @@ class Sampler():
     self.num_workers = num_workers
     env_kwargs = {
       "task_class": ReachTargetCustom, 
-      "render_mode": "human",
+      "render_mode": None, # "human",
       'num_tasks': 5,
+      "act_mode": ArmActionMode.DELTA_EE_POSE_PLAN_WORLD_FRAME,
+      'action_size' : 7,
       }
     
     self.env = MultiTaskEnv(**env_kwargs)
@@ -112,16 +116,15 @@ class Sampler():
     state = state.float().unsqueeze(1)
     action_vector = torch.zeros([self.num_workers, num_actions])
 
-    # Try to speed up while having some check
-    if all(action > -1):
-      action_vector.scatter_(1, action.cpu().unsqueeze(1), 1)
-    elif any(action > -1):
-      assert False, 'All processes should be at the same step'
+    # # Try to speed up while having some check
+    # if all(action > -1):
+    #   action_vector.scatter_(1, action.cpu().unsqueeze(1), 1)
+    # elif any(action > -1):
+    #   assert False, 'All processes should be at the same step'
     
-    from IPython import embed; embed()
 
-    state = torch.cat((state, action_vector, reward_entry, done_entry), 1)
-    state = state.unsqueeze(0)
+    state = torch.cat((state, action_vector.T, reward_entry, done_entry), 0)
+    state = state.T.unsqueeze(0)
     return state.to(self.device)
 
 
@@ -160,14 +163,17 @@ class Sampler():
       action = self.get_next_action(dist)
 
       log_prob = dist.log_prob(action)
-      next_state, reward, done, _ = self.env.step(action.cpu().numpy())
-      done = done.astype(int)
+
+      next_state, reward, done, _ = self.env.step(action.squeeze(0).cpu().numpy())
+      
+      reward = np.array(reward)
+      done = np.array(done).astype(int)
 
       reward = torch.from_numpy(reward).float()
       done = torch.from_numpy(done).float()
         
       # Store the information
-      self.insert_storage(log_prob.unsqueeze(0), state, action.unsqueeze(0), reward, done, value, hidden_state)
+      self.insert_storage(log_prob.unsqueeze(0), state, action, reward.unsqueeze(0), done.unsqueeze(0), value, hidden_state)
       self.save_evaluate(action, state, reward)
 
       # Update to the next value
@@ -175,6 +181,9 @@ class Sampler():
       state = torch.from_numpy(state).float()
       
       hidden_state = next_hidden_state.to(self.device)
+
+      done = done.unsqueeze(0)
+      reward = reward.unsqueeze(0)
 
       # Grab hidden state for the extra information
       if all(done):
